@@ -48,6 +48,11 @@ public class EnchantmentTask implements GenericTask {
     }
 
     @Override
+    public String getTaskMessage(Player player) {
+        return getTaskMessage();
+    }
+
+    @Override
     public boolean hasCompleted(Player player) {
         for (ItemStack item : player.getInventory().getContents()) {
             if (item == null) continue;

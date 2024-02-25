@@ -49,6 +49,11 @@ public class CauseOfDeathTask implements GenericTask, Listener {
     }
 
     @Override
+    public String getTaskMessage(Player player) {
+        return getTaskMessage();
+    }
+
+    @Override
     public boolean hasCompleted(Player player) {
         return completed.getOrDefault(player.getUniqueId(), false);
     }

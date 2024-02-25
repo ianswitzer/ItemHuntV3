@@ -6,3 +6,21 @@ commands:
   itemhunt:
     description: Start/stop/join/manage an Item Hunt
     usage: /itemhunt <start/stop/clear/join/reroll/shuffle/extend/setskipcount>
+  setskipcount:
+    description: Set the number of skips available per game
+    usage: /setskipcount <number>
+  reroll:
+    description: Reroll your task
+    usage: /reroll
+  skip:
+    description: Skip your task
+    usage: /skip
+  join:
+    description: Join Item Hunt
+    usage: /join
+  showwincondition:
+    description: Show the win condition task starting on a particular round, -1 for never
+    usage: /showwincondition <round>
+  togglesamewincondition:
+    description: Toggle whether players have the same win condition
+    usage: /togglesamewincondition

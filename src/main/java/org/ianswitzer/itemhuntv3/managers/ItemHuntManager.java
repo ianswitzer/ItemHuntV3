@@ -17,13 +17,16 @@ public class ItemHuntManager {
     private final int secondsPerRound;
     private int currentTime;
     private int skipCount;
-    private final HashMap<UUID, Integer> playerRound;
+    private final HashMap<UUID, Integer> playerRounds;
     private final HashMap<UUID, Integer> playerSkips;
-    private final HashMap<UUID, GenericTask> playerTask;
-    private final HashMap<UUID, Boolean> playerStatus;
+    private final HashMap<UUID, GenericTask> playerTasks;
+    private final HashMap<UUID, GenericTask> playerWinConditions;
+    private final HashMap<UUID, Boolean> playerStatuses;
     private BukkitTask checkForCompletion;
     private BukkitTask timer;
     private final Plugin plugin;
+    private int winConditionVisibleRound;
+    private boolean sameWinCondition;
 
     public ItemHuntManager(int timePerRound) {
         plugin = Bukkit.getPluginManager().getPlugin("ItemHuntV3");
@@ -31,11 +34,14 @@ public class ItemHuntManager {
         round = 1;
         this.secondsPerRound = timePerRound;
         currentTime = 0;
-        playerRound = new HashMap<>();
-        playerTask = new HashMap<>();
-        playerStatus = new HashMap<>();
+        playerRounds = new HashMap<>();
+        playerTasks = new HashMap<>();
+        playerStatuses = new HashMap<>();
         playerSkips = new HashMap<>();
+        playerWinConditions = new HashMap<>();
         skipCount = 0;
+        winConditionVisibleRound = 0;
+        sameWinCondition = false;
     }
 
     public void stop() {
@@ -43,10 +49,11 @@ public class ItemHuntManager {
         if (checkForCompletion != null && !checkForCompletion.isCancelled()) checkForCompletion.cancel();
         if (timer != null && !timer.isCancelled()) timer.cancel();
         ItemHuntV3.statusManager.stop();
-        playerRound.clear();
-        playerTask.clear();
-        playerStatus.clear();
+        playerRounds.clear();
+        playerTasks.clear();
+        playerStatuses.clear();
         playerSkips.clear();
+        playerWinConditions.clear();
         round = 1;
         currentTime = 0;
         ItemHuntV3.taskManager.resetCauseOfDeathCompletion();
@@ -63,13 +70,12 @@ public class ItemHuntManager {
         round = 1;
         currentTime = 0;
         active = true;
-
         Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "Item Hunt is starting!");
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID uuid = player.getUniqueId();
-            playerStatus.put(uuid, true);
-            playerRound.put(uuid, round);
+            playerStatuses.put(uuid, true);
+            playerRounds.put(uuid, round);
             playerSkips.put(uuid, skipCount);
             update(player);
         }
@@ -79,17 +85,111 @@ public class ItemHuntManager {
         ItemHuntV3.statusManager.start();
     }
 
-    public boolean isActive() {
-        return active;
+    public void skip(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        int skipsRemaining = playerSkips.get(uuid);
+        playerSkips.put(uuid, Math.max(skipsRemaining - 1, 0));
+
+        int nextRound = playerRounds.get(uuid) + 1;
+        playerRounds.put(uuid, nextRound);
+
+        Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTasks.get(uuid).getTaskMessage());
+        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTasks.get(uuid).getTaskMessage());
+        update(player);
+    }
+
+    public void playerFinishRound(Player player) {
+        UUID uuid = player.getUniqueId();
+        int currentRound = playerRounds.get(uuid);
+        int newRound = currentRound + 1;
+
+        GenericTask task = playerTasks.get(uuid);
+        Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has completed Round " + currentRound + ": " + task.getTaskMessage());
+        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has completed Round " + currentRound + ": " + task.getTaskMessage());
+
+        playerRounds.put(uuid, newRound);
+        update(player);
+    }
+
+    public void endCurrentRound() {
+        currentTime = 0;
+        int nextRound = round + 1;
+
+        deactivateOfflinePlayers();
+
+        int activePlayers = 0;
+        ArrayList<Player> wouldBeActivePlayers = new ArrayList<>();
+        ArrayList<Player> wouldBeInactivePlayers = new ArrayList<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID uuid = player.getUniqueId();
+
+            if (!isPlayerActive(uuid)) continue;
+            activePlayers += 1;
+
+            int currentRound = playerRounds.get(uuid);
+            if (currentRound >= nextRound || (currentRound == round && playerSkips.get(uuid) > 0))
+                wouldBeActivePlayers.add(player);
+            else 
+                wouldBeInactivePlayers.add(player);
+        }
+        
+        if (activePlayers == 0) {
+            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "No players remaining! Stopping Item Hunt.");
+            stop();
+            return;
+        }
+
+        if (wouldBeActivePlayers.isEmpty()) {
+            Bukkit.broadcastMessage(ChatColor.LIGHT_PURPLE + "" + ChatColor.ITALIC + "No one has completed Round " + round + " - extending the timer.");
+
+        } else {
+            for (Player player : wouldBeInactivePlayers) {
+                UUID uuid = player.getUniqueId();
+                playerStatuses.put(uuid, false);
+                Bukkit.broadcastMessage(ChatColor.RED + player.getDisplayName() + " failed to complete their task for Round " + round + ": " + playerTasks.get(uuid).getTaskMessage());
+                player.setGameMode(GameMode.SPECTATOR);
+            }
+
+            if (wouldBeActivePlayers.size() == 1) {
+                playerWonGame(wouldBeActivePlayers.get(0));
+
+            } else {
+                for (Player player : wouldBeActivePlayers) {
+                    if (playerRounds.get(player.getUniqueId()) == round)
+                        skip(player);
+                }
+            }
+
+            round += 1;
+        }
+    }
+
+    public void join(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (isPlayerActive(uuid)) return;
+
+        player.setGameMode(GameMode.SURVIVAL);
+        GenericTask task = ItemHuntV3.taskManager.getRandomTask(round);
+        playerRounds.put(uuid, round);
+        playerTasks.put(uuid, task);
+        playerStatuses.put(uuid, true);
+        playerSkips.put(uuid, 0);
+        player.sendMessage(ChatColor.ITALIC + "" + ChatColor.AQUA + "Your task: " + task.getTaskMessage());
+    }
+
+    public void playerWonGame(Player player) {
+        Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + player.getDisplayName() + " has won Item Hunt!");
+        stop();
     }
 
     public void reroll(Player player) {
         UUID uuid = player.getUniqueId();
         if (!isPlayerActive(uuid)) return;
 
-        GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRound.get(uuid));
-        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has rerolled. Old task: " + (playerTask.get(uuid) != null ? playerTask.get(uuid).getTaskMessage() : "") + ". New task: " + task.getTaskMessage());
-        playerTask.put(uuid, task);
+        GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
+        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has rerolled. Old task: " + (playerTasks.get(uuid) != null ? playerTasks.get(uuid).getTaskMessage() : "") + ". New task: " + task.getTaskMessage());
+        playerTasks.put(uuid, task);
 
         player.sendMessage(ChatColor.ITALIC + "" + ChatColor.AQUA + "Your task: " + task.getTaskMessage());
     }
@@ -98,58 +198,25 @@ public class ItemHuntManager {
         UUID uuid = player.getUniqueId();
         if (!isPlayerActive(uuid)) return;
 
-        GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRound.get(uuid));
-        playerTask.put(uuid, task);
+        GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
+        while (task.hasCompleted(player))
+            task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
+
+        playerTasks.put(uuid, task);
         ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has a new task: " + task.getTaskMessage());
 
         player.sendMessage(ChatColor.ITALIC + "" + ChatColor.AQUA + "Your task: " + task.getTaskMessage());
     }
 
-    public void shuffle() {
-        ItemHuntV3.logManager.writeLog("Shuffling all tasks.");
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            UUID uuid = player.getUniqueId();
-            if (!isPlayerActive(uuid)) continue;
-
-            update(player);
-        }
-    }
-
-    public boolean skip(Player player) {
-        UUID uuid = player.getUniqueId();
-        if (!isPlayerActive(uuid)) return false;
-
-        int skipsRemaining = playerSkips.get(uuid);
-        if (skipsRemaining <= 0 && !player.isOp()) return false;
-
-        int nextRound = playerRound.get(uuid) + 1;
-        playerRound.put(uuid, nextRound);
-
-        Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTask.get(uuid).getTaskMessage());
-        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTask.get(uuid).getTaskMessage());
-        update(player);
-
-        playerSkips.put(uuid, skipsRemaining - 1);
-        return true;
-    }
-
-    public void join(Player player) {
-        UUID uuid = player.getUniqueId();
-        if (isPlayerActive(uuid)) return;
-
-        GenericTask task = ItemHuntV3.taskManager.getRandomTask(round);
-        playerRound.put(uuid, round);
-        playerTask.put(uuid, task);
-        playerStatus.put(uuid, true);
-        playerSkips.put(uuid, 0);
-        player.sendMessage(ChatColor.ITALIC + "" + ChatColor.AQUA + "Your task: " + task.getTaskMessage());
-    }
-
     public void extend(int time) {
-        if (time < 0) return;
+        if (time <= 0) return;
 
         currentTime -= time;
         Bukkit.broadcastMessage(ChatColor.AQUA + "" + ChatColor.ITALIC + "Timer extended by " + time + " seconds.");
+    }
+
+    public boolean isActive() {
+        return active;
     }
 
     public void setSkipCount(int count) {
@@ -157,6 +224,7 @@ public class ItemHuntManager {
     }
 
     public int getSkipsRemaining(UUID uuid) {
+        if (!playerStatuses.getOrDefault(uuid, false)) return 0;
         return playerSkips.get(uuid);
     }
 
@@ -169,15 +237,25 @@ public class ItemHuntManager {
     }
 
     public GenericTask getPlayerTask(UUID uuid) {
-        return playerTask.get(uuid);
+        return playerTasks.get(uuid);
+    }
+
+    public GenericTask getPlayerWinCondition(UUID uuid) {
+        if (sameWinCondition)
+            return ItemHuntV3.taskManager.getWinCondition(true);
+
+        if (!playerWinConditions.containsKey(uuid))
+            playerWinConditions.put(uuid, ItemHuntV3.taskManager.getWinCondition(false));
+
+        return playerWinConditions.get(uuid);
     }
 
     public boolean isPlayerActive(UUID uuid) {
-        return playerStatus.getOrDefault(uuid, false);
+        return playerStatuses.getOrDefault(uuid, false);
     }
 
     public int getPlayerRound(UUID uuid) {
-        return playerRound.get(uuid);
+        return playerRounds.get(uuid);
     }
 
     public int getCurrentRound() {
@@ -194,72 +272,32 @@ public class ItemHuntManager {
 
     public int getActivePlayerCount() {
         int total = 0;
-        for (UUID uuid : playerStatus.keySet()) {
-            if (playerStatus.get(uuid)) total += 1;
+        for (UUID uuid : playerStatuses.keySet()) {
+            if (playerStatuses.get(uuid)) total += 1;
         }
 
         return total;
     }
 
-    public void playerFinishRound(Player player) {
-        UUID uuid = player.getUniqueId();
-        int currentRound = playerRound.get(uuid);
-        int newRound = currentRound + 1;
-        GenericTask task = playerTask.get(uuid);
-        Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has completed Round " + currentRound + ": " + task.getTaskMessage());
-        ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has completed Round " + currentRound + ": " + task.getTaskMessage());
-
-        if (currentRound == 10) {
-            stop();
-            Bukkit.broadcastMessage(ChatColor.GREEN + player.getDisplayName() + " HAS WON ITEM HUNT!");
-        } else {
-            playerRound.put(uuid, newRound);
-            update(player);
+    private void deactivateOfflinePlayers() {
+        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
+            UUID uuid = player.getUniqueId();
+            if (playerStatuses.containsKey(uuid) && !player.isOnline())
+                playerStatuses.put(uuid, false);
         }
     }
 
-    public void endCurrentRound() {
-        currentTime = 0;
-        int nextRound = round + 1;
+    public boolean showWinCondition() {
+        return winConditionVisibleRound > 0 && round >= winConditionVisibleRound;
+    }
 
-        ArrayList<Player> activePlayers = new ArrayList<>();
-        ArrayList<Player> wouldBeActivePlayers = new ArrayList<>();
-        ArrayList<Player> wouldBeInactivePlayers = new ArrayList<>();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            UUID uuid = player.getUniqueId();
+    public void setWinConditionVisibleRound(int visibleRound) {
+        winConditionVisibleRound = visibleRound;
+    }
 
-            if (!isPlayerActive(uuid)) continue;
-            activePlayers.add(player);
-            
-            if (playerRound.get(uuid) >= nextRound)
-                wouldBeActivePlayers.add(player);
-            else 
-                wouldBeInactivePlayers.add(player);
-        }
-        
-        if (activePlayers.isEmpty()) {
-            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "No players remaining! Stopping Item Hunt.");
-            stop();
-        } else if (wouldBeActivePlayers.isEmpty()) {
-            Bukkit.broadcastMessage(ChatColor.LIGHT_PURPLE + "" + ChatColor.ITALIC + "No one has completed Round " + round + " - extending the timer.");
-        } else {
-            for (Player player : wouldBeInactivePlayers) {
-                UUID uuid = player.getUniqueId();
-                playerStatus.put(uuid, false);
-                Bukkit.broadcastMessage(ChatColor.RED + player.getDisplayName() + " failed to complete their task for Round " + round + ": " + playerTask.get(uuid).getTaskMessage());
-            }
-            if (wouldBeActivePlayers.size() == 1) {
-                Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + wouldBeActivePlayers.get(0).getDisplayName() + " has won Item Hunt!");
-                stop();
-            }
-            round += 1;
-        }
-
-        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
-            UUID uuid = player.getUniqueId();
-            if (playerStatus.containsKey(uuid) && !player.isOnline())
-                playerStatus.put(uuid, false);
-        }
+    public boolean toggleSameWinCondition() {
+        sameWinCondition = !sameWinCondition;
+        return sameWinCondition;
     }
 
     private BukkitRunnable createTimer() {
@@ -281,6 +319,16 @@ public class ItemHuntManager {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
                     if (!ItemHuntV3.itemHuntManager.isPlayerActive(uuid)) continue;
+
+                    if (winConditionVisibleRound > 0 && round >= winConditionVisibleRound) {
+                        GenericTask winCondition = ItemHuntV3.itemHuntManager.getPlayerWinCondition(uuid);
+                        if (winCondition.hasCompleted(player)) {
+                            Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has completed the Win Condition: " + winCondition.getTaskMessage());
+                            ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has completed the Win Condition: " + winCondition.getTaskMessage());
+
+                            ItemHuntV3.itemHuntManager.playerWonGame(player);
+                        }
+                    }
 
                     GenericTask task = ItemHuntV3.itemHuntManager.getPlayerTask(uuid);
                     if (task.hasCompleted(player)) {
@@ -323,5 +371,7 @@ public class ItemHuntManager {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "advancement revoke " + player.getDisplayName() + " everything");
             player.teleport(Objects.requireNonNull(Bukkit.getWorld("world")).getSpawnLocation());
         }
+
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "recipe give @a *");
     }
 }

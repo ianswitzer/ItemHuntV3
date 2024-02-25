@@ -131,22 +131,32 @@ public class StatusManager {
                     String secondText = (seconds > 9 ? "" : "0") + seconds;
 
                     Score timer = objective.getScore(ChatColor.AQUA + "Time left: " + ChatColor.WHITE + minuteText + ":" + secondText);
-                    timer.setScore(6);
+                    timer.setScore(7);
 
                     Score completed = objective.getScore(ChatColor.BLUE + "Your round: " + ChatColor.WHITE + playerRound);
-                    completed.setScore(5);
+                    completed.setScore(6);
 
                     Score skips = objective.getScore(ChatColor.AQUA + "Skips: " + ChatColor.WHITE + skipsLeft);
-                    skips.setScore(4);
+                    skips.setScore(5);
 
                     Score remaining = objective.getScore(ChatColor.BLUE + "Players: " + ChatColor.WHITE + playerCount);
-                    remaining.setScore(3);
+                    remaining.setScore(4);
 
                     Score taskLine1 = objective.getScore(ChatColor.AQUA + "Your task: ");
-                    taskLine1.setScore(2);
+                    taskLine1.setScore(3);
 
-                    Score taskLine2 = objective.getScore(task.getTaskMessage());
-                    taskLine2.setScore(1);
+                    Score taskLine2 = objective.getScore(task.getTaskMessage(player));
+                    taskLine2.setScore(2);
+
+                    if (ItemHuntV3.itemHuntManager.showWinCondition()) {
+                        GenericTask winCondition = ItemHuntV3.itemHuntManager.getPlayerWinCondition(uuid);
+
+                        Score winConditionLine1 = objective.getScore(ChatColor.YELLOW + "Win condition: ");
+                        winConditionLine1.setScore(1);
+
+                        Score winConditionLine2 = objective.getScore(winCondition.getTaskMessage(player));
+                        winConditionLine2.setScore(0);
+                    }
 
                     player.setScoreboard(scoreboard);
                 }

@@ -19,6 +19,11 @@ public class PotionEffectTask implements GenericTask {
     }
 
     @Override
+    public String getTaskMessage(Player player) {
+        return getTaskMessage();
+    }
+
+    @Override
     public boolean hasCompleted(Player player) {
         return player.hasPotionEffect(effect);
     }

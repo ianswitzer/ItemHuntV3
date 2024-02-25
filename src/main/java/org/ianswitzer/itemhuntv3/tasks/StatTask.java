@@ -9,16 +9,37 @@ public class StatTask implements GenericTask {
     private final Statistic statistic;
     private final int threshold;
     private EntityType entityType;
+    private String nameOverride;
+    private int displayMultiplier = 1;
 
     public StatTask(Statistic statistic, int threshold) {
         this.statistic = statistic;
         this.threshold = threshold;
     }
 
+    public StatTask(Statistic statistic, int threshold, String nameOverride) {
+        this(statistic, threshold);
+        this.nameOverride = nameOverride;
+    }
+
+    public StatTask(Statistic statistic, int threshold, String nameOverride, int displayMultiplier) {
+        this(statistic, threshold, nameOverride);
+        this.displayMultiplier = displayMultiplier;
+    }
+
     public StatTask(Statistic statistic, EntityType entityType, int threshold) {
-        this.statistic = statistic;
-        this.threshold = threshold;
+        this(statistic, threshold);
         this.entityType = entityType;
+    }
+
+    public StatTask(Statistic statistic, EntityType entityType, int threshold, String nameOverride) {
+        this(statistic, entityType, threshold);
+        this.nameOverride = nameOverride;
+    }
+
+    public StatTask(Statistic statistic, EntityType entityType, int threshold, String nameOverride, int displayMultiplier) {
+        this(statistic, entityType, threshold, nameOverride);
+        this.displayMultiplier = displayMultiplier;
     }
 
     public Statistic getStatistic() {
@@ -29,12 +50,27 @@ public class StatTask implements GenericTask {
         return entityType;
     }
 
+    private String getTaskProgress(Player player) {
+        if (entityType == null)
+            return Math.round((float) player.getStatistic(statistic) / displayMultiplier) + "/" + Math.round((float) threshold / displayMultiplier);
+        else
+            return Math.round((float) player.getStatistic(statistic, entityType) / displayMultiplier) + "/" + Math.round((float) threshold / displayMultiplier);
+    }
+
+    @Override
+    public String getTaskMessage(Player player) {
+        return getTaskMessage() + " (" + getTaskProgress(player) + ")";
+    }
+
     @Override
     public String getTaskMessage() {
+        String name = statistic.name();
+        if (nameOverride != null) name = nameOverride;
+
         if (entityType == null)
-            return statistic.name() + " >= " + threshold;
+            return name + " >= " + threshold;
         else
-            return statistic.name() + " " + entityType.name() + " >= " + threshold;
+            return name + " " + entityType.name() + " >= " + threshold;
     }
 
     @Override
