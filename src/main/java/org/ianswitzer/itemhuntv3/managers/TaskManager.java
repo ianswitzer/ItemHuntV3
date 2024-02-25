@@ -471,7 +471,6 @@ public class TaskManager {
         addTask(-1, 1, new ItemTask(Material.COAL_ORE));
         addTask(-1, 1, new ItemTask(Material.IRON_ORE));
         addTask(-1, 1, new ItemTask(Material.MUSIC_DISC_PIGSTEP));
-        addTask(-1, 1, new ItemTask(Material.BROWN_CANDLE));
         addTask(-1, 1, new ItemTask(Material.TRIDENT));
         addTask(-1, 1, new ItemTask(Material.DEEPSLATE_REDSTONE_ORE));
         addTask(-1, 1, new ItemTask(Material.DEEPSLATE_DIAMOND_ORE));

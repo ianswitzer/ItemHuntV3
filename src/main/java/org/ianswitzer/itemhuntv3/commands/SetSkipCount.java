@@ -19,6 +19,7 @@ public class SetSkipCount implements CommandExecutor {
             if (skipCount < 0) return invalid(sender);
 
             ItemHuntV3.itemHuntManager.setSkipCount(skipCount);
+            sender.sendMessage(ChatColor.GREEN + "Set skip count to " + skipCount);
         } catch (Exception exception) {
             return invalid(sender);
         }

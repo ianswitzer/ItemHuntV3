@@ -41,7 +41,7 @@ public class ItemHuntManager {
         playerWinConditions = new HashMap<>();
         skipCount = 0;
         winConditionVisibleRound = 0;
-        sameWinCondition = false;
+        sameWinCondition = true;
     }
 
     public void stop() {
@@ -288,7 +288,7 @@ public class ItemHuntManager {
     }
 
     public boolean showWinCondition() {
-        return winConditionVisibleRound > 0 && round >= winConditionVisibleRound;
+        return winConditionVisibleRound >= 0 && round >= winConditionVisibleRound;
     }
 
     public void setWinConditionVisibleRound(int visibleRound) {
@@ -320,7 +320,7 @@ public class ItemHuntManager {
                     UUID uuid = player.getUniqueId();
                     if (!ItemHuntV3.itemHuntManager.isPlayerActive(uuid)) continue;
 
-                    if (winConditionVisibleRound > 0 && round >= winConditionVisibleRound) {
+                    if (winConditionVisibleRound >= 0 && round >= winConditionVisibleRound) {
                         GenericTask winCondition = ItemHuntV3.itemHuntManager.getPlayerWinCondition(uuid);
                         if (winCondition.hasCompleted(player)) {
                             Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has completed the Win Condition: " + winCondition.getTaskMessage());

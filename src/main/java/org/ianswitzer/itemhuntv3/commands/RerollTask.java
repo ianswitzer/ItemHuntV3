@@ -15,7 +15,7 @@ public class RerollTask implements CommandExecutor {
 
         ItemHuntV3.itemHuntManager.reroll((Player) sender);
 
-        return false;
+        return true;
     }
 
     private boolean invalid(CommandSender sender) {
