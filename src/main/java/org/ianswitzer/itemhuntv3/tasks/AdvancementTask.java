@@ -4,10 +4,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.entity.Player;
+import org.ianswitzer.itemhuntv3.interfaces.CompletionTracker;
 import org.ianswitzer.itemhuntv3.interfaces.GenericTask;
 
 public class AdvancementTask implements GenericTask {
-    private Advancement advancement;
+    private final Advancement advancement;
 
     public AdvancementTask(String advancementName) {
         advancement = Bukkit.getAdvancement(NamespacedKey.minecraft(advancementName));

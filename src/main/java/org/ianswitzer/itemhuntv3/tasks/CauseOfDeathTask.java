@@ -9,25 +9,21 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.ianswitzer.itemhuntv3.interfaces.CompletionTracker;
 import org.ianswitzer.itemhuntv3.interfaces.GenericTask;
 
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.UUID;
 
-public class CauseOfDeathTask implements GenericTask, Listener {
-    private final HashMap<UUID, Boolean> completed;
+public class CauseOfDeathTask extends CompletionTracker implements Listener {
     private final EntityDamageEvent.DamageCause damageCause;
 
     public CauseOfDeathTask(EntityDamageEvent.DamageCause damageCause) {
-        completed = new HashMap<>();
+        super();
         this.damageCause = damageCause;
 
         Bukkit.getPluginManager().registerEvents(this, Objects.requireNonNull(Bukkit.getPluginManager().getPlugin("ItemHuntV3")));
-    }
-
-    public void resetCompletion() {
-        completed.clear();
     }
 
     @EventHandler
@@ -39,7 +35,7 @@ public class CauseOfDeathTask implements GenericTask, Listener {
         EntityDamageEvent.DamageCause lastDamageCause = lastDamageCauseEvent.getCause();
 
         if (lastDamageCause.equals(damageCause)) {
-            completed.put(player.getUniqueId(), true);
+            completion.put(player.getUniqueId(), true);
         }
     }
 
@@ -55,6 +51,6 @@ public class CauseOfDeathTask implements GenericTask, Listener {
 
     @Override
     public boolean hasCompleted(Player player) {
-        return completed.getOrDefault(player.getUniqueId(), false);
+        return completion.getOrDefault(player.getUniqueId(), false);
     }
 }

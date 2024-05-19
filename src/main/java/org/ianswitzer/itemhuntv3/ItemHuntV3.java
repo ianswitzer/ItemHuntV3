@@ -12,8 +12,24 @@ import org.ianswitzer.itemhuntv3.tabcompleters.SkipTaskTabCompleter;
 import java.util.Objects;
 
 // TODO: keep timer up for losers
-// TODO: add task to get to 0,0,0
+//      - show current round and time left in round
+//      - show task for each player
 // TODO: add constructor for LocationTask to take a world name
+// TODO: fireworks/jingle for the winner
+// TODO: add more stuff to round 8 - less chance for nether stuff
+// TODO: add RNG for count of mobs killed
+// TODO: add lightning round - 1 min per round, 5 tier1 items then 5 tier 2 etc.
+// TODO: move everything to config.yml
+//      - all tasks, skip count, time per round, round spacing (how many times to pull from each tier)
+// TODO: add reroll
+
+// TODO: play block.tripwire.click_on for 10 second countdown
+// TODO: play sound every time round ends
+// TODO: play embarrassing sound when skipping - minecraft:entity.villager.ambient /.no
+// TODO: play sequence of horns after win
+// TODO: play sound for individual people when they complete a round
+// TODO: play sound when more time gets added - minecraft:entity.zombie_villager.converted
+// TODO: play sound when someone gets eliminated -
 
 public final class ItemHuntV3 extends JavaPlugin {
     public static StatusManager statusManager;

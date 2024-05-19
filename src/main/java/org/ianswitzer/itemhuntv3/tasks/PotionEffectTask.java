@@ -3,12 +3,16 @@ package org.ianswitzer.itemhuntv3.tasks;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
+import org.ianswitzer.itemhuntv3.interfaces.CompletionTracker;
 import org.ianswitzer.itemhuntv3.interfaces.GenericTask;
 
-public class PotionEffectTask implements GenericTask {
+import java.util.UUID;
+
+public class PotionEffectTask extends CompletionTracker {
     private final PotionEffectType effect;
 
     public PotionEffectTask(PotionEffectType effect) {
+        super();
         this.effect = effect;
     }
 
@@ -25,6 +29,15 @@ public class PotionEffectTask implements GenericTask {
 
     @Override
     public boolean hasCompleted(Player player) {
-        return player.hasPotionEffect(effect);
+        UUID uuid = player.getUniqueId();
+        if (completion.getOrDefault(uuid, false))
+            return true;
+
+        if (player.hasPotionEffect(effect)) {
+            completion.put(player.getUniqueId(), true);
+            return true;
+        }
+
+        return false;
     }
 }

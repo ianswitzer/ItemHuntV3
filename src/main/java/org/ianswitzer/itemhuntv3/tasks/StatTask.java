@@ -68,9 +68,9 @@ public class StatTask implements GenericTask {
         if (nameOverride != null) name = nameOverride;
 
         if (entityType == null)
-            return name + " >= " + threshold;
+            return name + " >= " + Math.round((float) threshold / displayMultiplier);
         else
-            return name + " " + entityType.name() + " >= " + threshold;
+            return name + " " + entityType.name() + " >= " + Math.round((float) threshold / displayMultiplier);
     }
 
     @Override

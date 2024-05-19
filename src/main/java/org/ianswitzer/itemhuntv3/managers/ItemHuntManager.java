@@ -6,6 +6,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.ianswitzer.itemhuntv3.ItemHuntV3;
+import org.ianswitzer.itemhuntv3.events.ResetItemHuntEvent;
 import org.ianswitzer.itemhuntv3.interfaces.GenericTask;
 import org.ianswitzer.itemhuntv3.tasks.StatTask;
 
@@ -39,7 +40,7 @@ public class ItemHuntManager {
         playerStatuses = new HashMap<>();
         playerSkips = new HashMap<>();
         playerWinConditions = new HashMap<>();
-        skipCount = 0;
+        skipCount = 1;
         winConditionVisibleRound = 0;
         sameWinCondition = true;
     }
@@ -56,7 +57,7 @@ public class ItemHuntManager {
         playerWinConditions.clear();
         round = 1;
         currentTime = 0;
-        ItemHuntV3.taskManager.resetCauseOfDeathCompletion();
+        Bukkit.getPluginManager().callEvent(new ResetItemHuntEvent());
         ItemHuntV3.logManager.writeLog("Item Hunt ending.");
         ItemHuntV3.logManager.close();
     }
@@ -64,7 +65,7 @@ public class ItemHuntManager {
     public void start() {
         ItemHuntV3.logManager.open();
         ItemHuntV3.logManager.writeLog("Item Hunt starting.");
-        ItemHuntV3.taskManager.resetCauseOfDeathCompletion();
+        Bukkit.getPluginManager().callEvent(new ResetItemHuntEvent());
         configureWorlds();
         wipePlayers();
         round = 1;
@@ -77,7 +78,7 @@ public class ItemHuntManager {
             playerStatuses.put(uuid, true);
             playerRounds.put(uuid, round);
             playerSkips.put(uuid, skipCount);
-            update(player);
+            update(player, false);
         }
 
         timer = createTimer().runTaskTimer(plugin, 20, 20);
@@ -96,7 +97,8 @@ public class ItemHuntManager {
 
         Bukkit.broadcastMessage(ChatColor.AQUA + player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTasks.get(uuid).getTaskMessage());
         ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has skipped Round " + (nextRound - 1) + ": " + playerTasks.get(uuid).getTaskMessage());
-        update(player);
+        boolean checkCompletion = nextRound > 10;
+        update(player, checkCompletion);
     }
 
     public void playerFinishRound(Player player) {
@@ -109,7 +111,8 @@ public class ItemHuntManager {
         ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has completed Round " + currentRound + ": " + task.getTaskMessage());
 
         playerRounds.put(uuid, newRound);
-        update(player);
+        boolean checkCompletion = newRound > 10;
+        update(player, checkCompletion);
     }
 
     public void endCurrentRound() {
@@ -187,19 +190,23 @@ public class ItemHuntManager {
         UUID uuid = player.getUniqueId();
         if (!isPlayerActive(uuid)) return;
 
-        GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
+        int currentRound = playerRounds.get(uuid);
+        GenericTask task = ItemHuntV3.taskManager.getRandomTask(currentRound);
+        while (currentRound > 10 && task.hasCompleted(player))
+            task = ItemHuntV3.taskManager.getRandomTask(currentRound);
+
         ItemHuntV3.logManager.writeLog(player.getDisplayName() + " has rerolled. Old task: " + (playerTasks.get(uuid) != null ? playerTasks.get(uuid).getTaskMessage() : "") + ". New task: " + task.getTaskMessage());
         playerTasks.put(uuid, task);
 
         player.sendMessage(ChatColor.ITALIC + "" + ChatColor.AQUA + "Your task: " + task.getTaskMessage());
     }
 
-    public void update(Player player) {
+    public void update(Player player, boolean checkCompletion) {
         UUID uuid = player.getUniqueId();
         if (!isPlayerActive(uuid)) return;
 
         GenericTask task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
-        while (task.hasCompleted(player))
+        while (checkCompletion && task.hasCompleted(player))
             task = ItemHuntV3.taskManager.getRandomTask(playerRounds.get(uuid));
 
         playerTasks.put(uuid, task);
@@ -353,7 +360,7 @@ public class ItemHuntManager {
         for(Player player : Bukkit.getOnlinePlayers()) {
             player.getInventory().clear();
             player.setGameMode(GameMode.SURVIVAL);
-            player.getActivePotionEffects().clear();
+            player.getActivePotionEffects().forEach(effect -> player.removePotionEffect(effect.getType()));
             player.setHealth(20.0);
             player.setExp(0);
             player.setTotalExperience(0);
