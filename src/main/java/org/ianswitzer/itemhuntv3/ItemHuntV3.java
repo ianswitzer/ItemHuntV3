@@ -16,12 +16,10 @@ import java.util.Objects;
 //      - show task for each player
 // TODO: add constructor for LocationTask to take a world name
 // TODO: fireworks/jingle for the winner
-// TODO: add more stuff to round 8 - less chance for nether stuff
 // TODO: add RNG for count of mobs killed
 // TODO: add lightning round - 1 min per round, 5 tier1 items then 5 tier 2 etc.
 // TODO: move everything to config.yml
 //      - all tasks, skip count, time per round, round spacing (how many times to pull from each tier)
-// TODO: add reroll
 
 // TODO: play block.tripwire.click_on for 10 second countdown
 // TODO: play sound every time round ends

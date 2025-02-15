@@ -7,6 +7,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.ianswitzer.itemhuntv3.ItemHuntV3;
 import org.ianswitzer.itemhuntv3.events.ResetItemHuntEvent;
+import org.ianswitzer.itemhuntv3.events.RoundEndEvent;
 import org.ianswitzer.itemhuntv3.interfaces.GenericTask;
 import org.ianswitzer.itemhuntv3.tasks.StatTask;
 
@@ -313,8 +314,10 @@ public class ItemHuntManager {
             public void run() {
                 ItemHuntV3.itemHuntManager.incrementTimer();
 
-                if (ItemHuntV3.itemHuntManager.isRoundOver())
+                if (ItemHuntV3.itemHuntManager.isRoundOver()) {
+                    Bukkit.getPluginManager().callEvent(new RoundEndEvent(ItemHuntV3.itemHuntManager.getCurrentRound()));
                     ItemHuntV3.itemHuntManager.endCurrentRound();
+                }
             }
         };
     }
